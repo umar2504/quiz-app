@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz App</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:Inter,Arial,sans-serif;
+}
+
+body{
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:linear-gradient(135deg,#eef2ff,#f8fafc);
+  padding:20px;
+  color:#0f172a;
+}
+
+.container{
+  width:100%;
+  max-width:900px;
+  background:rgba(255,255,255,.95);
+  border-radius:28px;
+  padding:35px;
+  box-shadow:0 15px 40px rgba(0,0,0,.08);
+}
+
+.title{
+  text-align:center;
+  font-size:32px;
+  font-weight:700;
+  margin-bottom:10px;
+}
+
+.subtitle{
+  text-align:center;
+  color:#64748b;
+  margin-bottom:25px;
+}
+
+.error{
+  display:none;
+  background:#fee2e2;
+  color:#991b1b;
+  padding:15px;
+  border-radius:16px;
+  margin-bottom:20px;
+  line-height:1.5;
+}
+
+.progress{
+  text-align:right;
+  color:#64748b;
+  margin-bottom:15px;
+}
+
+.question{
+  font-size:24px;
+  line-height:1.5;
+  margin-bottom:28px;
+  font-weight:600;
+}
+
+.answers{
+  display:grid;
+  gap:15px;
+}
+
+.answer{
+  border:none;
+  padding:18px;
+  border-radius:18px;
+  background:#f8fafc;
+  border:2px solid transparent;
+  cursor:pointer;
+  text-align:left;
+  transition:.25s;
+  font-size:16px;
+}
+
+.answer:hover{
+  transform:translateY(-2px);
+  background:#eef4ff;
+  border-color:#bfd4ff;
+}
+
+.correct{
+  background:#dcfce7 !important;
+  border-color:#22c55e !important;
+  color:#166534;
+}
+
+.wrong{
+  background:#fee2e2 !important;
+  border-color:#ef4444 !important;
+  color:#991b1b;
+}
+
+.next-btn{
+  width:100%;
+  margin-top:25px;
+  padding:16px;
+  border:none;
+  border-radius:18px;
+  background:#2563eb;
+  color:white;
+  font-size:16px;
+  cursor:pointer;
+  display:none;
+  transition: .2s;
+}
+
+.next-btn:hover {
+  background:#1d4ed8;
+}
+
+.effect{
+  position:fixed;
+  inset:0;
+  opacity:0;
+  pointer-events:none;
+  transition:.35s;
+}
+
+.effect.show{
+  opacity:1;
+}
+
+.green{
+  background:radial-gradient(circle,rgba(34,197,94,.25),transparent 70%);
+}
+
+.red{
+  background:radial-gradient(circle,rgba(239,68,68,.35),transparent 70%);
+}
+
+.icon{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%) scale(.7);
+  opacity:0;
+  font-size:120px;
+  transition:.3s;
+  pointer-events:none;
+}
+
+.icon.show{
+  opacity:1;
+  transform:translate(-50%,-50%) scale(1);
+}
+
+.check{color:#22c55e;}
+.cross{color:#ef4444;}
+
+.finish{
+  text-align:center;
+  padding:30px 10px;
+}
+
+.finish h2{
+  font-size:36px;
+  margin-bottom:15px;
+}
+
+.finish p{
+  color:#64748b;
+  font-size: 18px;
+  margin-bottom: 25px;
+}
+
+.finish strong {
+  color: #0f172a;
+  font-size: 22px;
+}
+
+/* Новые стили для меню */
+.menu-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.menu-btn {
+  padding: 20px;
+  border-radius: 18px;
+  border: 2px solid transparent;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: .25s;
+}
+
+.menu-btn:hover {
+  background: #e2e8f0;
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+}
+
+.back-btn {
+  padding: 16px 30px;
+  border-radius: 18px;
+  border: none;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: .2s;
+}
+
+.back-btn:hover {
+  background: #cbd5e1;
+}
+</style>
+</head>
+<body>
+
+<div class="effect green" id="greenEffect"></div>
+<div class="effect red" id="redEffect"></div>
+
+<div class="icon check" id="checkIcon">✔</div>
+<div class="icon cross" id="crossIcon">✖</div>
+
+<div class="container">
+  <div class="title">Quiz App</div>
+  <div class="subtitle" id="mainSubtitle">Выберите тест для начала</div>
+
+  <div class="error" id="errorBox"></div>
+
+  <div id="menu">
+    <div class="menu-grid" id="menuGrid"></div>
+  </div>
+
+  <div id="quiz" style="display:none;">
+    <div class="progress" id="progress"></div>
+    <div class="question" id="question"></div>
+    <div class="answers" id="answers"></div>
+    <button class="next-btn" id="nextBtn">Следующий вопрос</button>
+  </div>
+</div>
+
+<script>
+// ========================================================================
+// НАСТРОЙКИ ТЕСТОВ (Меняйте названия файлов здесь)
+// ========================================================================
+const TESTS = {
+  "maktabga tayyorlash javob": "TEST/maktabga_tayyorlash_javob.xlsx",
+  "matem": "TEST/matem.xlsx",
+  "nutq": "TEST/nutq.xlsx",
+  "steam javob": "TEST/steam_javob.xlsx",
+  "tasviriy_faoliyat": "TEST/tasviriy_faoliyat.xlsx"
+};
+// ========================================================================
+
+let questions = [];
+let currentQuestion = 0;
+let score = 0;
+let answered = false;
+
+const menu = document.getElementById('menu');
+const menuGrid = document.getElementById('menuGrid');
+const quiz = document.getElementById('quiz');
+const progress = document.getElementById('progress');
+const questionEl = document.getElementById('question');
+const answersEl = document.getElementById('answers');
+const nextBtn = document.getElementById('nextBtn');
+const errorBox = document.getElementById('errorBox');
+const mainSubtitle = document.getElementById('mainSubtitle');
+
+const greenEffect = document.getElementById('greenEffect');
+const redEffect = document.getElementById('redEffect');
+const checkIcon = document.getElementById('checkIcon');
+const crossIcon = document.getElementById('crossIcon');
+
+function shuffleArray(array){
+  for(let i=array.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [array[i],array[j]]=[array[j],array[i]];
+  }
+}
+
+function initMenu() {
+  menuGrid.innerHTML = '';
+  quiz.style.display = 'none';
+  menu.style.display = 'block';
+  errorBox.style.display = 'none';
+  mainSubtitle.innerText = 'Выберите тест для начала';
+
+  for (const [name, path] of Object.entries(TESTS)) {
+    const btn = document.createElement('button');
+    btn.className = 'menu-btn';
+    btn.innerText = name;
+    btn.onclick = () => loadExcel(path, name);
+    menuGrid.appendChild(btn);
+  }
+}
+
+async function loadExcel(filePath, testName){
+  try{
+    errorBox.style.display='none';
+    menu.style.display='none';
+    quiz.style.display='block';
+
+    questionEl.innerText = 'Загрузка и обработка файла...';
+    answersEl.innerHTML = '';
+    nextBtn.style.display = 'none';
+    progress.innerText = '';
+    mainSubtitle.innerText = testName;
+
+    const response = await fetch(filePath);
+    if(!response.ok) throw new Error(`Не удалось загрузить файл: ${filePath}`);
+
+    const data = await response.arrayBuffer();
+    const workbook = XLSX.read(data, {type:'array'});
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+    const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+
+    if(rows.length < 1){
+      throw new Error('Excel файл пустой');
+    }
+
+    questions = [];
+
+    // Чтение: столбец 0 - вопрос, столбец 1 - правильный, столбцы 2+ - неправильные
+    for(let i=0; i<rows.length; i++){
+      const row = rows[i];
+
+      // Пропуск полностью пустых строк
+      if(!row || !row.length) continue;
+
+      const qText = String(row[0] || '').trim();
+      if(!qText) continue;
+
+      const correctAns = String(row[1] || '').trim();
+      if(!correctAns) continue;
+
+      let wrongAnswers = [];
+      for(let j=2; j<row.length; j++){
+        const wAns = String(row[j] || '').trim();
+        if(wAns) wrongAnswers.push(wAns);
+      }
+
+      // Если нет неправильных ответов, пропускаем вопрос
+      if(wrongAnswers.length === 0) continue;
+
+      let formattedAnswers = [{ text: correctAns, isCorrect: true }];
+      wrongAnswers.forEach(w => formattedAnswers.push({ text: w, isCorrect: false }));
+
+      shuffleArray(formattedAnswers);
+
+      questions.push({
+        question: qText,
+        answers: formattedAnswers
+      });
+    }
+
+    if(!questions.length){
+      throw new Error('Не найдено корректных вопросов. Формат: 1 столбец - вопрос, 2 - правильный ответ, 3+ - неправильные.');
+    }
+
+    // Перемешиваем сами вопросы
+    shuffleArray(questions);
+
+    currentQuestion = 0;
+    score = 0;
+
+    renderQuestion();
+
+  }catch(error){
+    console.error(error);
+    errorBox.innerText = error.message;
+    errorBox.style.display='block';
+    quiz.style.display='none';
+    menu.style.display='block';
+    mainSubtitle.innerText = 'Ошибка';
+  }
+}
+
+function renderQuestion(){
+  const q = questions[currentQuestion];
+  if(!q) return;
+
+  answered = false;
+  nextBtn.style.display='none';
+
+  progress.innerText = `Вопрос ${currentQuestion+1} / ${questions.length}`;
+  questionEl.innerText = q.question;
+  answersEl.innerHTML='';
+
+  q.answers.forEach(answer=>{
+    const btn = document.createElement('button');
+    btn.className='answer';
+    btn.innerText=answer.text;
+
+    // Передаем boolean напрямую, решая баг с одинаковым текстом ответов
+    btn.addEventListener('click',()=>chooseAnswer(btn, answer.isCorrect));
+    answersEl.appendChild(btn);
+  });
+}
+
+function chooseAnswer(button, isCorrect){
+  if(answered) return; // Защита от двойных кликов
+  answered = true;
+
+  const buttons = document.querySelectorAll('.answer');
+
+  if(isCorrect){
+    button.classList.add('correct');
+    score++; // Защищено от двойного засчитывания флагом answered
+    showCorrectEffect();
+  }else{
+    button.classList.add('wrong');
+    showWrongEffect();
+
+    // Ищем кнопку с правильным ответом по индексу, чтобы избежать ошибок совпадения текста
+    const currentAnswers = questions[currentQuestion].answers;
+    const correctIndex = currentAnswers.findIndex(a => a.isCorrect);
+
+    if(correctIndex !== -1 && buttons[correctIndex]) {
+       buttons[correctIndex].classList.add('correct');
+    }
+  }
+
+  nextBtn.style.display='block';
+}
+
+function showCorrectEffect(){
+  greenEffect.classList.add('show');
+  checkIcon.classList.add('show');
+  setTimeout(()=>{
+    greenEffect.classList.remove('show');
+    checkIcon.classList.remove('show');
+  },900);
+}
+
+function showWrongEffect(){
+  redEffect.classList.add('show');
+  crossIcon.classList.add('show');
+  setTimeout(()=>{
+    redEffect.classList.remove('show');
+    crossIcon.classList.remove('show');
+  },900);
+}
+
+nextBtn.addEventListener('click',()=>{
+  currentQuestion++;
+
+  if(currentQuestion >= questions.length){
+    // Сохраняем общий каркас контейнера и выводим финальный экран
+    quiz.innerHTML = `
+      <div class="finish">
+        <h2>Тест завершён 🎉</h2>
+        <p>Правильных ответов: <br><br><strong>${score}</strong> из <strong>${questions.length}</strong></p>
+        <button class="back-btn" onclick="location.reload()">Вернуться в меню</button>
+      </div>
+    `;
+    return;
+  }
+
+  renderQuestion();
+});
+
+// Запуск приложения
+initMenu();
+
+</script>
+</body>
+</html>
